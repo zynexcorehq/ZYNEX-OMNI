@@ -1,0 +1,587 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ZYNEX OMNI — Social Inbox &amp; Publisher</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
+<style>
+:root{--bg:#07090E;--card:#0E131B;--card2:#131A24;--cy:#00B4D8;--cy2:rgba(0,180,216,.14);--tx:#E8EEF5;--mu:#7C8A9C;--bd:rgba(255,255,255,.07);--ok:#2ECC71;--er:#FF5470;--wn:#F5A524}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%}
+body{background:radial-gradient(900px 500px at 88% -8%,rgba(0,180,216,.13),transparent),var(--bg);color:var(--tx);font:14px/1.5 "Segoe UI",Inter,system-ui,-apple-system,sans-serif;overflow:hidden}
+button,input,select,textarea{font:inherit;color:inherit}
+button{cursor:pointer;border:0;background:none}
+:focus-visible{outline:2px solid var(--cy);outline-offset:2px}
+::-webkit-scrollbar{width:8px;height:8px}::-webkit-scrollbar-thumb{background:#1c2633;border-radius:8px}
+h1{font-size:24px;letter-spacing:.2px}h3{font-size:15px;margin-bottom:12px;display:flex;align-items:center;gap:8px}
+.sub{color:var(--mu);margin:2px 0 20px}
+small,.mu{color:var(--mu)}
+/* shell */
+.app{display:flex;height:100vh}
+.nav{width:84px;background:rgba(14,19,27,.8);backdrop-filter:blur(14px);border-right:1px solid var(--bd);display:flex;flex-direction:column;align-items:center;padding:16px 0;gap:6px}
+.logo{font-weight:800;font-size:12px;letter-spacing:2px;color:var(--cy);margin-bottom:14px;text-align:center;line-height:1.2}
+.logo b{display:block;color:var(--tx);font-size:15px}
+.nb{width:68px;padding:10px 0;border-radius:12px;color:var(--mu);font-size:11px;display:flex;flex-direction:column;align-items:center;gap:2px;transition:.2s}
+.nb span{font-size:20px}.nb:hover{color:var(--tx);background:rgba(255,255,255,.04)}
+.nb.on{color:var(--cy);background:var(--cy2);box-shadow:inset 0 0 0 1px rgba(0,180,216,.35)}
+.nav .sp{flex:1}
+.main{flex:1;min-width:0;height:100vh}
+.view{display:none;height:100%}.view.on{display:block}
+.pad{height:100%;overflow:auto;padding:28px 32px 60px}
+/* common */
+.card{background:var(--card);border:1px solid var(--bd);border-radius:16px;padding:18px;margin-bottom:16px;backdrop-filter:blur(10px)}
+label{display:flex;justify-content:space-between;color:var(--mu);font-size:12px;margin:12px 0 5px}
+input,select,textarea{width:100%;background:#0A0E15;border:1px solid var(--bd);border-radius:10px;padding:9px 12px;transition:.2s}
+textarea{resize:vertical}
+input:focus,select:focus,textarea:focus{border-color:var(--cy);box-shadow:0 0 0 3px rgba(0,180,216,.15);outline:0}
+.btn{background:var(--cy);color:#04141A;font-weight:700;padding:9px 18px;border-radius:10px;transition:.2s;white-space:nowrap}
+.btn:hover{box-shadow:0 0 22px rgba(0,180,216,.45);transform:translateY(-1px)}
+.btn.ghost{background:var(--cy2);color:var(--cy);box-shadow:inset 0 0 0 1px rgba(0,180,216,.4)}
+.btn.danger{background:rgba(255,84,112,.12);color:var(--er);box-shadow:inset 0 0 0 1px rgba(255,84,112,.35)}
+.btn.sm{padding:5px 12px;font-size:12px}.btn.wide{width:100%;margin-top:14px}
+.btn:disabled{opacity:.5;pointer-events:none}
+.pb{display:inline-grid;place-items:center;min-width:26px;height:26px;padding:0 6px;border-radius:8px;font-size:11px;font-weight:800;flex:none;color:var(--c);background:color-mix(in srgb,var(--c) 16%,transparent);border:1px solid color-mix(in srgb,var(--c) 45%,transparent)}
+.pill{font-size:11px;padding:2px 9px;border-radius:20px;background:rgba(255,255,255,.06)}
+.pill.published,.pill.connected{color:var(--ok);background:rgba(46,204,113,.12)}.pill.failed,.pill.error{color:var(--er);background:rgba(255,84,112,.12)}
+.pill.scheduled,.pill.publishing,.pill.paused{color:var(--wn);background:rgba(245,165,36,.12)}
+.empty{color:var(--mu);text-align:center;padding:36px 16px;border:1px dashed var(--bd);border-radius:14px}
+/* inbox */
+#v-inbox.on{display:grid;grid-template-columns:230px 340px 1fr}
+.col{border-right:1px solid var(--bd);min-height:0;display:flex;flex-direction:column}
+.fbar{padding:20px 12px;overflow:auto;gap:2px}
+.fbar h4{font-size:12px;color:var(--mu);margin:14px 10px 6px;font-weight:600}
+.fi{display:flex;align-items:center;gap:10px;width:100%;padding:7px 10px;border-radius:10px;color:var(--mu);text-align:left;transition:.2s}
+.fi em{margin-left:auto;font-style:normal;font-size:11px}
+.fi:hover{background:rgba(255,255,255,.04);color:var(--tx)}.fi.on{background:var(--cy2);color:var(--tx);box-shadow:inset 2px 0 var(--cy)}
+.lhead{padding:18px 16px 10px}.lhead h2{font-size:18px;margin-bottom:10px}
+.tl{overflow:auto;flex:1}
+.th{display:flex;gap:12px;padding:12px 16px;border-bottom:1px solid var(--bd);cursor:pointer;transition:.2s;position:relative}
+.th:hover{background:rgba(255,255,255,.03)}.th.on{background:var(--cy2);box-shadow:inset 3px 0 var(--cy)}
+.av{width:42px;height:42px;border-radius:50%;display:grid;place-items:center;font-weight:700;font-size:14px;flex:none;position:relative;background:hsl(var(--h) 45% 24%);color:hsl(var(--h) 80% 80%)}
+.av .pb{position:absolute;right:-6px;bottom:-6px;min-width:20px;height:20px;font-size:9px;padding:0 3px;border-radius:6px;background:#0E131B}
+.tb{min-width:0;flex:1}.tr{display:flex;justify-content:space-between;gap:8px}
+.tn{font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.tt{font-size:11px;color:var(--mu);flex:none}
+.tp{color:var(--mu);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-size:13px}
+.th.un .tn,.th.un .tp{color:var(--tx)}
+.dot{background:var(--cy);color:#04141A;font-size:11px;font-weight:800;min-width:19px;height:19px;border-radius:10px;display:grid;place-items:center;padding:0 5px;box-shadow:0 0 12px rgba(0,180,216,.6)}
+.convo{min-height:0;display:flex;flex-direction:column}
+.chead{display:flex;align-items:center;gap:14px;padding:14px 22px;border-bottom:1px solid var(--bd);background:rgba(14,19,27,.6);backdrop-filter:blur(12px)}
+.chead .grow{flex:1;min-width:0}.chead b{font-size:16px}
+.via{display:flex;align-items:center;gap:6px;color:var(--mu);font-size:12px}
+.back{display:none;font-size:20px;color:var(--cy)}
+.msgs{flex:1;overflow:auto;padding:22px;display:flex;flex-direction:column;gap:10px}
+.msg{display:flex}.msg.out{justify-content:flex-end}
+.bub{max-width:min(520px,78%);padding:10px 14px;border-radius:16px;background:var(--card2);border:1px solid var(--bd);border-bottom-left-radius:4px;word-break:break-word}
+.msg.out .bub{background:linear-gradient(135deg,rgba(0,180,216,.28),rgba(0,180,216,.12));border-color:rgba(0,180,216,.4);border-bottom-left-radius:16px;border-bottom-right-radius:4px}
+.bub small{display:block;margin-top:4px;font-size:11px}
+.bub img{max-width:100%;border-radius:10px;margin-bottom:6px;display:block}
+.bub a{color:var(--cy)}
+.comp{padding:14px 22px;border-top:1px solid var(--bd);background:rgba(14,19,27,.6)}
+.crow{display:flex;gap:10px;align-items:flex-end}
+.crow textarea{resize:none;max-height:140px}
+.ic{width:40px;height:40px;border-radius:10px;background:var(--cy2);color:var(--cy);font-size:18px;flex:none}
+.chip{display:inline-flex;align-items:center;gap:6px;font-size:12px;background:var(--cy2);color:var(--cy);border-radius:20px;padding:3px 10px;margin-bottom:8px}
+.nothing{margin:auto;text-align:center;color:var(--mu)}.nothing b{display:block;font-size:42px;color:var(--cy);filter:drop-shadow(0 0 14px rgba(0,180,216,.5))}
+/* publisher */
+.pgrid{display:grid;grid-template-columns:minmax(300px,420px) 1fr;gap:18px;align-items:start}
+.drop{display:grid;place-items:center;text-align:center;min-height:130px;border:1.5px dashed rgba(0,180,216,.45);border-radius:14px;background:var(--cy2);cursor:pointer;color:var(--mu);transition:.2s;padding:14px}
+.drop:hover,.drop.hv{background:rgba(0,180,216,.22);color:var(--tx)}
+#mprev img,#mprev video{width:100%;border-radius:12px;margin-top:10px;max-height:220px;object-fit:cover}
+.chips{display:flex;flex-wrap:wrap;gap:8px}
+.pc2{display:flex;align-items:center;gap:8px;padding:6px 12px 6px 6px;border-radius:30px;border:1px solid var(--bd);background:#0A0E15;color:var(--mu);transition:.2s}
+.pc2.on{color:var(--tx);border-color:var(--c);box-shadow:0 0 14px color-mix(in srgb,var(--c) 35%,transparent)}
+.cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(310px,1fr));gap:16px}
+.pc{border-top:2px solid var(--c);margin:0}
+.cnt{font-variant-numeric:tabular-nums}.cnt.over{color:var(--er);font-weight:700}
+.bar{display:flex;gap:12px;align-items:flex-end;flex-wrap:wrap}.bar>div{flex:1;min-width:200px}
+.row{display:flex;gap:12px;align-items:center;padding:10px 0;border-bottom:1px solid var(--bd)}.row:last-child{border:0}
+.row .grow{flex:1;min-width:0}
+/* accounts */
+.agrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(270px,1fr));gap:14px;margin-bottom:20px}
+.ac{margin:0;display:flex;gap:12px;align-items:center}
+.two{display:grid;grid-template-columns:1fr 1fr;gap:18px;align-items:start}
+.frm{display:grid;grid-template-columns:1fr 1fr;gap:10px}.frm .full{grid-column:1/-1}
+/* login & toast */
+#login{position:fixed;inset:0;background:rgba(7,9,14,.85);backdrop-filter:blur(10px);display:none;place-items:center;z-index:50;padding:16px}
+#login.on{display:grid}
+.lbox{width:min(440px,100%);max-height:96vh;overflow:auto}
+.err{color:var(--er);font-size:12px;min-height:18px;margin-top:8px}
+#toasts{position:fixed;right:20px;bottom:20px;display:flex;flex-direction:column;gap:8px;z-index:60}
+.toast{background:var(--card2);border:1px solid rgba(0,180,216,.4);border-radius:12px;padding:10px 16px;box-shadow:0 8px 30px rgba(0,0,0,.5);animation:in .25s}
+.toast.er{border-color:var(--er)}
+@keyframes in{from{opacity:0;transform:translateY(8px)}}
+@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+@media (max-width:1100px){#v-inbox.on{grid-template-columns:200px 300px 1fr}.pgrid,.two{grid-template-columns:1fr}}
+@media (max-width:820px){
+ .nav{width:60px}.nb{width:52px}.logo{font-size:9px}.pad{padding:18px 14px 60px}
+ #v-inbox.on{grid-template-columns:1fr;grid-template-rows:auto 1fr}
+ .fbar{flex-direction:row;overflow-x:auto;padding:8px;border-right:0;border-bottom:1px solid var(--bd);gap:4px;flex-wrap:nowrap}
+ .fbar h4{display:none}.fi{width:auto;white-space:nowrap}
+ .convo{display:none}body.has-thread .convo{display:flex;position:fixed;inset:0 0 0 60px;background:var(--bg);z-index:20}
+ .back{display:block}.frm{grid-template-columns:1fr}
+}
+</style>
+</head>
+<body>
+<div class="app">
+ <nav class="nav">
+  <div class="logo">ZYNEX<b>OMNI</b></div>
+  <button class="nb on" data-v="inbox"><span>📥</span>Inbox</button>
+  <button class="nb" data-v="pub"><span>🚀</span>Publisher</button>
+  <button class="nb" data-v="acc"><span>🔗</span>Accounts</button>
+  <div class="sp"></div>
+  <button class="nb" id="logout"><span>⎋</span>Sign out</button>
+ </nav>
+ <main class="main">
+  <!-- INBOX -->
+  <section class="view on" id="v-inbox">
+   <aside class="col fbar">
+    <h4>Platform</h4><div id="fp"></div>
+    <h4>Status</h4><div id="fs"></div>
+   </aside>
+   <div class="col">
+    <div class="lhead"><h2>Unified Inbox</h2><input id="srch" placeholder="Search conversations…" aria-label="Search conversations"></div>
+    <div class="tl" id="tl"></div>
+   </div>
+   <div class="convo" id="convo"></div>
+  </section>
+  <!-- PUBLISHER -->
+  <section class="view" id="v-pub"><div class="pad">
+   <h1>Smart Publisher Studio</h1><p class="sub">Upload once, tailor for every platform, publish or schedule in one step.</p>
+   <div class="pgrid">
+    <div class="card">
+     <h3>Master content</h3>
+     <label class="drop" id="drop" style="display:grid"><input type="file" id="mf" accept="video/*,image/*" hidden><div id="dz">Drop a video or image here, or click to upload<br><small>Saved to Supabase Storage bucket omni-media</small></div></label>
+     <div id="mprev"></div>
+     <label for="topic">Master topic</label><input id="topic" placeholder="e.g. How we built an omni-channel inbox in a weekend">
+     <label for="mcap">Master caption / description</label><textarea id="mcap" rows="5" placeholder="Describe the post once. AI Auto-Tailor adapts it for each platform."></textarea>
+     <label>Target platforms</label><div class="chips" id="chips"></div>
+     <button class="btn ghost wide" id="ai">✨ AI Auto-Tailor</button>
+    </div>
+    <div>
+     <div class="cards" id="pcards"></div>
+     <div class="card bar" style="margin-top:16px">
+      <div><label for="when" style="margin-top:0">Schedule for</label><input type="datetime-local" id="when"></div>
+      <button class="btn ghost" id="sch">🕒 Schedule</button><button class="btn" id="now">🚀 Publish Now</button>
+     </div>
+     <div class="card"><h3>Recent posts</h3><div id="plist"></div></div>
+    </div>
+   </div>
+  </div></section>
+  <!-- ACCOUNTS -->
+  <section class="view" id="v-acc"><div class="pad">
+   <h1>Connected Accounts &amp; Webhooks</h1><p class="sub">Register the accounts your bridge handles and point Omni at your automation endpoints.</p>
+   <div class="agrid" id="agrid"></div>
+   <div class="two">
+    <div class="card"><h3>Add account</h3>
+     <div class="frm">
+      <div><label for="np">Platform</label><select id="np"></select></div>
+      <div><label for="nn">Account name</label><input id="nn" placeholder="ZYNEX CORE"></div>
+      <div class="full"><label for="nh">Handle / number / address</label><input id="nh" placeholder="@zynexcore"></div>
+     </div><button class="btn wide" id="addacc">Add account</button>
+    </div>
+    <div class="card"><h3>Webhooks &amp; AI</h3>
+     <label for="sRep">Outbound reply webhook URL</label><input id="sRep" placeholder="https://your-n8n.com/webhook/omni-reply">
+     <label for="sPub">Publish webhook URL</label><input id="sPub" placeholder="https://your-n8n.com/webhook/omni-publish">
+     <label for="sAi">OpenAI or Claude API key (optional)</label><input id="sAi" type="password" placeholder="sk-… or sk-ant-…" autocomplete="off">
+     <label for="sMod">AI model (optional)</label><input id="sMod" placeholder="claude-sonnet-5-5 or gpt-4o-mini">
+     <p class="mu" style="font-size:12px;margin-top:10px">Saved in this browser only. Webhook endpoints must allow CORS from this page.</p>
+     <button class="btn wide" id="saveset">Save settings</button>
+    </div>
+   </div>
+  </div></section>
+ </main>
+</div>
+
+<div id="login"><div class="card lbox">
+ <h3 style="font-size:18px">ZYNEX OMNI</h3><p class="mu">Sign in with a Supabase Auth user, or explore with built-in demo data.</p>
+ <label for="lu">Supabase project URL</label><input id="lu" placeholder="https://xxxx.supabase.co">
+ <label for="lk">Supabase anon key</label><input id="lk" type="password" autocomplete="off">
+ <label for="le">Email</label><input id="le" type="email" autocomplete="username">
+ <label for="lp">Password</label><input id="lp" type="password" autocomplete="current-password">
+ <div class="err" id="lerr"></div>
+ <button class="btn wide" id="lgo" style="margin-top:6px">Sign in</button>
+ <button class="btn ghost wide" id="ldemo">Explore demo mode</button>
+</div></div>
+<div id="toasts" aria-live="polite"></div>
+
+<script>
+'use strict';
+/* ---------- helpers & state ---------- */
+const $=s=>document.querySelector(s);
+const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const uid=()=>Math.random().toString(36).slice(2)+Date.now().toString(36);
+const fmt=d=>{d=new Date(d);return d.toDateString()==new Date().toDateString()?d.toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'}):d.toLocaleDateString([],{month:'short',day:'numeric'})};
+const safeUrl=u=>/^(https?:|blob:)/.test(u||'')?esc(u):'#';
+const ini=n=>String(n).replace(/[^\w\s]/g,'').split(/\s+/).filter(Boolean).map(w=>w[0]).join('').slice(0,2).toUpperCase()||'?';
+const hue=n=>[...String(n)].reduce((a,c)=>(a*31+c.charCodeAt(0))%360,7);
+const PL={whatsapp:['WhatsApp','#25D366','WA'],telegram:['Telegram','#2AABEE','TG'],instagram:['Instagram','#E4405F','IG'],facebook:['Facebook','#1877F2','FB'],x:['X','#E7E9EA','X'],linkedin:['LinkedIn','#0A66C2','in'],youtube:['YouTube','#FF0000','▶'],email:['Email','#F5A524','@']};
+const badge=p=>`<span class="pb" style="--c:${PL[p][1]}" title="${PL[p][0]}">${PL[p][2]}</span>`;
+const CFG=()=>JSON.parse(localStorage.getItem('zx_conn')||'{}'),SET=()=>JSON.parse(localStorage.getItem('zx_set')||'{}');
+let sb=null,demo=false,T=[],M=[],A=[],P=[],DM=[],cur=null,fp='all',fs='all',query='',rfile=null,media=null,sel=new Set(),pd={};
+
+function toast(m,t=''){const e=document.createElement('div');e.className='toast '+t;e.textContent=m;$('#toasts').append(e);setTimeout(()=>e.remove(),4200)}
+async function hook(url,payload){
+ try{const r=await fetch(url,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});let b=null;try{b=await r.json()}catch(_){}return{ok:r.ok,status:r.status,body:b}}
+ catch(e){return{ok:false,error:e.message}}
+}
+async function upload(file,folder){
+ if(demo)return URL.createObjectURL(file);
+ const path=`${folder}/${Date.now()}-${file.name.replace(/[^\w.-]/g,'_')}`;
+ const{error}=await sb.storage.from('omni-media').upload(path,file,{contentType:file.type});
+ if(error)throw error;
+ return sb.storage.from('omni-media').getPublicUrl(path).data.publicUrl;
+}
+
+/* ---------- boot / auth ---------- */
+async function boot(){
+ const c=CFG();
+ if(c.url&&c.key){try{sb=supabase.createClient(c.url,c.key);const{data}=await sb.auth.getSession();if(data.session)return start()}catch(_){}}
+ $('#lu').value=c.url||'';$('#lk').value=c.key||'';$('#login').classList.add('on');
+}
+$('#lgo').onclick=async()=>{
+ const url=$('#lu').value.trim(),key=$('#lk').value.trim();$('#lerr').textContent='';
+ if(!url||!key)return $('#lerr').textContent='Enter your Supabase URL and anon key.';
+ try{
+  sb=supabase.createClient(url,key);
+  const{error}=await sb.auth.signInWithPassword({email:$('#le').value.trim(),password:$('#lp').value});
+  if(error)throw error;
+  localStorage.setItem('zx_conn',JSON.stringify({url,key}));start();
+ }catch(e){$('#lerr').textContent=e.message}
+};
+$('#ldemo').onclick=()=>{demo=true;sb=null;seedDemo();start();setTimeout(simIncoming,18000)};
+$('#logout').onclick=async()=>{if(sb)await sb.auth.signOut();localStorage.removeItem('zx_conn');location.reload()};
+
+async function start(){
+ $('#login').classList.remove('on');
+ await loadAll();renderAll();loadSettingsForm();
+ if(!demo)subscribe();
+}
+async function loadAll(){
+ if(demo)return;
+ const[t,a,p]=await Promise.all([
+  sb.from('unified_threads').select('*').order('last_message_at',{ascending:false}),
+  sb.from('social_accounts').select('*').order('created_at'),
+  sb.from('scheduled_posts').select('*').order('created_at',{ascending:false}).limit(8)]);
+ if(t.error||a.error)toast((t.error||a.error).message,'er');
+ T=t.data||[];A=a.data||[];P=p.data||[];
+}
+async function loadMsgs(id){
+ if(demo){M=DM.filter(m=>m.thread_id==id);return}
+ const r=await sb.from('unified_messages').select('*').eq('thread_id',id).order('created_at');
+ M=r.data||[];
+}
+function subscribe(){
+ sb.channel('zx-omni')
+ .on('postgres_changes',{event:'*',schema:'public',table:'unified_messages'},p=>{
+   if(!cur)return;
+   if(p.eventType=='INSERT'&&p.new.thread_id==cur.id&&!M.some(m=>m.id==p.new.id)){M.push(p.new);renderMsgs();if(p.new.direction=='in')markRead()}
+   if(p.eventType=='UPDATE'){const m=M.find(x=>x.id==p.new.id);if(m){Object.assign(m,p.new);renderMsgs()}}
+ })
+ .on('postgres_changes',{event:'*',schema:'public',table:'unified_threads'},async()=>{
+   const r=await sb.from('unified_threads').select('*').order('last_message_at',{ascending:false});
+   T=r.data||T;if(cur)cur=T.find(t=>t.id==cur.id)||cur;renderFilters();renderThreads();if(cur)renderHead();
+ })
+ .on('postgres_changes',{event:'*',schema:'public',table:'social_accounts'},async()=>{const r=await sb.from('social_accounts').select('*').order('created_at');A=r.data||A;renderAcc()})
+ .subscribe();
+}
+
+/* ---------- demo data ---------- */
+function seedDemo(){
+ const m=x=>new Date(Date.now()-x*60000).toISOString();
+ A=[['whatsapp','ZYNEX Support','+94 77 000 1122'],['instagram','ZYNEX CORE','@zynexcore'],['linkedin','ZYNEX CORE Agency','/company/zynexcore'],['youtube','ZYNEX CORE','@zynexcore'],['x','ZYNEX CORE','@zynexcore'],['email','Hello Inbox','hello@zynexcore.com'],['telegram','ZYNEX Bot','@zynex_bot'],['facebook','ZYNEX CORE Page','/zynexcore']].map((a,i)=>({id:'a'+i,platform:a[0],account_name:a[1],handle:a[2],status:'connected'}));
+ const D=[
+  ['whatsapp','Amal Perera','+94 77 123 4567',[['in','Hi ZYNEX team! We are launching a boutique hotel in Galle next month.',190],['in','Can you handle branding and a booking website? Need a rough quote.',185],['out','Hi Amal! Absolutely. Could you share your timeline and budget range?',150],['in','Timeline is 6 weeks, budget around $4k. Can we do a call tomorrow?',12],['in','Also, do you manage Instagram content?',10]]],
+  ['instagram','Lanka Luxe Stays','@lanka.luxe.stays',[['in','Loved your latest reel! Open to a paid collab for our villas?',300],['in','We can send our media kit if you are interested.',295]]],
+  ['linkedin','Dr. Nimali Fernando','CTO at Orbit Pay',[['in','Hello, I saw your case study on the omni-channel dashboard.',1500],['out','Thank you Dr. Fernando! Happy to walk you through it.',1400],['in','Great. Could we schedule a demo for our product team this Thursday?',95]]],
+  ['youtube','Ravi Shankar','@TechWithRavi',[['in','Great tutorial on Supabase realtime! Does this work with Edge Functions too?',60]]],
+  ['x','Design Daily','@designdaily',[['in','@zynexcore your dark UI kit is stunning. Is it available for purchase?',35]]],
+  ['email','Orbit Pay Billing','billing@orbitpay.io',[['in','Subject: Invoice #ZX-2041. Could you resend the invoice with our VAT number?',720],['out','Sure, resending today with the VAT details.',700],['in','Thanks! Also please confirm the payment due date.',240]]],
+  ['telegram','Kasun D.','@kasun_dev',[['in','Hey, your webhook bridge returns 401 after I rotated the key.',500],['out','Please update the Authorization header with the new key and retry.',480],['in','That fixed it, thank you!',470],['out','Glad it is sorted. Ping us anytime.',460]]],
+  ['facebook','Sanduni Wijesinghe','Facebook Messenger',[['in','Do you run ad campaigns for small businesses?',2900],['out','Yes! We will DM you our packages.',2880],['in','Received, thank you!',2870]]]];
+ D.forEach((d,i)=>{
+  const id='t'+i,ms=d[3].map((x,j)=>({id:id+'m'+j,thread_id:id,direction:x[0],body:x[1],platform:d[0],delivery_status:x[0]=='out'?'sent':null,created_at:m(x[2])}));
+  DM.push(...ms);const l=ms[ms.length-1];let un=0;for(let k=ms.length-1;k>=0&&ms[k].direction=='in';k--)un++;
+  T.push({id,account_id:A.find(a=>a.platform==d[0]).id,platform:d[0],contact_name:d[1],contact_handle:d[2],last_message:l.body,last_message_at:l.created_at,unread_count:un,status:l.direction=='out'?'replied':'open'});
+ });
+ T[7].status='archived';T[7].unread_count=0;
+ P=[{id:'p0',title:'Behind the scenes: ZYNEX CORE studio',platforms:['instagram','linkedin','x'],status:'published',created_at:m(2880)}];
+}
+function simIncoming(){
+ const t=T[4],msg={id:uid(),thread_id:t.id,direction:'in',body:'Also, do you offer white-label licensing for agencies?',platform:'x',created_at:new Date().toISOString()};
+ DM.push(msg);Object.assign(t,{last_message:msg.body,last_message_at:msg.created_at,status:'open',unread_count:t.unread_count+1});
+ if(cur&&cur.id==t.id){M.push(msg);renderMsgs();markRead()}
+ renderFilters();renderThreads();toast('New message from '+t.contact_name+' on X');
+}
+
+/* ---------- inbox rendering ---------- */
+const flt=()=>T.filter(t=>(fp=='all'||t.platform==fp)&&(fs=='all'?t.status!='archived':fs=='unread'?t.unread_count>0&&t.status!='archived':t.status==fs)&&(!query||(t.contact_name+' '+t.contact_handle+' '+t.last_message).toLowerCase().includes(query))).sort((a,b)=>new Date(b.last_message_at)-new Date(a.last_message_at));
+function renderFilters(){
+ const cp=p=>T.filter(t=>t.status!='archived'&&(p=='all'||t.platform==p)).length;
+ $('#fp').innerHTML=['all',...Object.keys(PL)].map(p=>`<button class="fi ${fp==p?'on':''}" data-p="${p}">${p=='all'?'<span class="pb" style="--c:#00B4D8">∞</span>All platforms':badge(p)+PL[p][0]}<em>${cp(p)}</em></button>`).join('');
+ const S=[['all','Active'],['unread','Unread'],['replied','Replied'],['archived','Archived']];
+ const cs=s=>T.filter(t=>s=='all'?t.status!='archived':s=='unread'?t.unread_count>0&&t.status!='archived':t.status==s).length;
+ $('#fs').innerHTML=S.map(([s,l])=>`<button class="fi ${fs==s?'on':''}" data-s="${s}">${l}<em>${cs(s)}</em></button>`).join('');
+}
+function renderThreads(){
+ const L=flt();
+ $('#tl').innerHTML=L.length?L.map(t=>`<div class="th ${t.unread_count?'un':''} ${cur&&cur.id==t.id?'on':''}" data-id="${t.id}" tabindex="0">
+  <div class="av" style="--h:${hue(t.contact_name)}">${t.avatar_url?`<img src="${safeUrl(t.avatar_url)}" alt="" style="width:100%;height:100%;border-radius:50%;object-fit:cover">`:esc(ini(t.contact_name))}${badge(t.platform)}</div>
+  <div class="tb"><div class="tr"><span class="tn">${esc(t.contact_name)}</span><span class="tt">${fmt(t.last_message_at)}</span></div>
+  <div class="tr"><span class="tp">${esc(t.last_message)}</span>${t.unread_count?`<span class="dot">${t.unread_count}</span>`:''}</div>
+  <div class="tt">${esc(t.contact_handle||'')}</div></div></div>`).join(''):'<div class="empty" style="margin:16px">No conversations match these filters.</div>';
+}
+$('#fp').onclick=e=>{const b=e.target.closest('[data-p]');if(b){fp=b.dataset.p;renderFilters();renderThreads()}};
+$('#fs').onclick=e=>{const b=e.target.closest('[data-s]');if(b){fs=b.dataset.s;renderFilters();renderThreads()}};
+$('#srch').oninput=e=>{query=e.target.value.toLowerCase();renderThreads()};
+$('#tl').onclick=e=>{const b=e.target.closest('.th');if(b)openThread(b.dataset.id)};
+$('#tl').onkeydown=e=>{if(e.key=='Enter'){const b=e.target.closest('.th');if(b)openThread(b.dataset.id)}};
+
+function convoShell(){
+ $('#convo').innerHTML=`<div class="chead" id="chead"></div><div class="msgs" id="msgs"></div>
+ <div class="comp">${'<div id="achip"></div>'}<div class="crow">
+  <input type="file" id="rf" hidden><button class="ic" id="attach" title="Attach file" aria-label="Attach file">📎</button>
+  <textarea id="rt" rows="1" placeholder="Write a reply… (Enter to send, Shift+Enter for a new line)" aria-label="Reply"></textarea>
+  <button class="btn" id="send">Send</button></div></div>`;
+ $('#attach').onclick=()=>$('#rf').click();
+ $('#rf').onchange=e=>{rfile=e.target.files[0]||null;renderChip()};
+ $('#send').onclick=sendReply;
+ $('#rt').onkeydown=e=>{if(e.key=='Enter'&&!e.shiftKey){e.preventDefault();sendReply()}};
+}
+function renderChip(){$('#achip').innerHTML=rfile?`<span class="chip">📎 ${esc(rfile.name)} <button aria-label="Remove attachment" onclick="rfile=null;renderChip()">✕</button></span>`:''}
+async function openThread(id){
+ cur=T.find(t=>t.id==id);if(!cur)return;rfile=null;
+ document.body.classList.add('has-thread');convoShell();renderHead();
+ await loadMsgs(id);renderMsgs();markRead();renderThreads();$('#rt').focus({preventScroll:true});
+}
+function renderHead(){
+ const t=cur,a=A.find(x=>x.id==t.account_id),done=t.status=='archived';
+ $('#chead').innerHTML=`<button class="back" aria-label="Back to list" onclick="document.body.classList.remove('has-thread')">←</button>
+ <div class="av" style="--h:${hue(t.contact_name)}">${esc(ini(t.contact_name))}${badge(t.platform)}</div>
+ <div class="grow"><b>${esc(t.contact_name)}</b> <small>${esc(t.contact_handle||'')}</small>
+ <div class="via">${badge(t.platform)} via ${PL[t.platform][0]} · ${esc(a?a.account_name+' ('+(a.handle||'')+')':'Unlinked account')}</div></div>
+ <button class="btn ${done?'ghost':''} sm" id="resolve">${done?'↺ Reopen':'✓ Mark resolved'}</button>`;
+ $('#resolve').onclick=toggleResolved;
+}
+const att=m=>{const n=m.attachment_name||m.attachment_url;return /\.(png|jpe?g|gif|webp)$/i.test(n)?`<img src="${safeUrl(m.attachment_url)}" alt="${esc(n)}">`:`<div><a href="${safeUrl(m.attachment_url)}" target="_blank" rel="noopener">📎 ${esc(m.attachment_name||'Attachment')}</a></div>`};
+function renderMsgs(){
+ const b=$('#msgs');if(!b)return;
+ const ds={sent:'✓ delivered to webhook',pending:'⏳ sending…',failed:'⚠ delivery failed'};
+ b.innerHTML=M.length?M.map(m=>`<div class="msg ${m.direction}"><div class="bub">${m.attachment_url?att(m):''}${m.body?`<div>${esc(m.body).replace(/\n/g,'<br>')}</div>`:''}<small>${fmt(m.created_at)}${m.direction=='out'&&ds[m.delivery_status]?' · '+ds[m.delivery_status]:''}</small></div></div>`).join(''):'<div class="nothing">No messages yet.</div>';
+ b.scrollTop=b.scrollHeight;
+}
+async function markRead(){
+ if(!cur||!cur.unread_count)return;cur.unread_count=0;
+ if(!demo)await sb.from('unified_threads').update({unread_count:0}).eq('id',cur.id);
+ renderFilters();renderThreads();
+}
+async function toggleResolved(){
+ const status=cur.status=='archived'?'open':'archived';
+ if(!demo){const r=await sb.from('unified_threads').update({status,unread_count:0}).eq('id',cur.id);if(r.error)return toast(r.error.message,'er')}
+ Object.assign(cur,{status,unread_count:0});
+ renderHead();renderFilters();renderThreads();toast(status=='archived'?'Conversation resolved':'Conversation reopened');
+}
+async function sendReply(){
+ const th=cur,text=$('#rt').value.trim();if(!th||(!text&&!rfile))return;
+ const btn=$('#send');btn.disabled=true;
+ try{
+  let url=null,name=null;
+  if(rfile){url=await upload(rfile,'attachments');name=rfile.name}
+  const row={thread_id:th.id,direction:'out',body:text||null,attachment_url:url,attachment_name:name,platform:th.platform,delivery_status:'pending'};
+  let saved;
+  if(demo){saved={...row,id:uid(),created_at:new Date().toISOString()};DM.push(saved);Object.assign(th,{last_message:text||name,last_message_at:saved.created_at,status:'replied',unread_count:0})}
+  else{const r=await sb.from('unified_messages').insert(row).select().single();if(r.error)throw r.error;saved=r.data;Object.assign(th,{last_message:text||name,last_message_at:saved.created_at,status:'replied',unread_count:0})}
+  if(!M.some(m=>m.id==saved.id))M.push(saved);
+  $('#rt').value='';rfile=null;renderChip();renderMsgs();renderFilters();renderThreads();renderHead();
+  const url2=SET().replyHook;let st='failed';
+  if(!url2){toast('Saved, but no Outbound Reply Webhook is set (Accounts tab).','er')}
+  else{
+   const acc=A.find(a=>a.id==th.account_id)||null;
+   const res=await hook(url2,{event:'reply',message_id:saved.id,thread_id:th.id,external_thread_id:th.external_thread_id||null,platform:th.platform,account:acc,to:{name:th.contact_name,handle:th.contact_handle},text:text,attachment:url?{url,name}:null,sent_at:saved.created_at});
+   st=res.ok?'sent':'failed';toast(res.ok?'Reply delivered to webhook':'Webhook failed: '+(res.error||res.status),res.ok?'':'er');
+  }
+  saved.delivery_status=st;
+  if(!demo)await sb.from('unified_messages').update({delivery_status:st}).eq('id',saved.id);
+  renderMsgs();
+ }catch(e){toast('Send failed: '+e.message,'er')}
+ btn.disabled=false;
+}
+
+/* ---------- views ---------- */
+document.querySelectorAll('.nb[data-v]').forEach(b=>b.onclick=()=>{
+ document.querySelectorAll('.nb[data-v]').forEach(x=>x.classList.toggle('on',x==b));
+ document.querySelectorAll('.view').forEach(v=>v.classList.toggle('on',v.id=='v-'+b.dataset.v));
+});
+
+/* ---------- publisher ---------- */
+const PUB=['youtube','facebook','instagram','linkedin','x','telegram'];
+const FIELDS={
+ youtube:[['title','Video title','input'],['description','Description','textarea'],['tags','Tags / keywords (comma separated)','input'],['privacy','Privacy status','select:public,unlisted,private']],
+ instagram:[['type','Format','select:reel,post'],['caption','Caption','textarea',2200],['firstComment','First comment / hashtags','textarea']],
+ facebook:[['type','Format','select:post,reel'],['caption','Caption','textarea'],['firstComment','First comment / hashtags','textarea']],
+ linkedin:[['text','Post copy','textarea',3000]],
+ x:[['text','Post copy','textarea',280]],
+ telegram:[['text','Message','textarea']]};
+const DEF={youtube:()=>({title:'',description:'',tags:'',privacy:'public'}),instagram:()=>({type:'reel',caption:'',firstComment:''}),facebook:()=>({type:'post',caption:'',firstComment:''}),linkedin:()=>({text:''}),x:()=>({text:''}),telegram:()=>({text:''})};
+function renderChips(){
+ $('#chips').innerHTML=PUB.map(p=>`<button type="button" class="pc2 ${sel.has(p)?'on':''}" style="--c:${PL[p][1]}" data-p="${p}" aria-pressed="${sel.has(p)}">${badge(p)}${PL[p][0]}</button>`).join('');
+}
+$('#chips').onclick=e=>{
+ const b=e.target.closest('[data-p]');if(!b)return;const p=b.dataset.p;
+ if(sel.has(p))sel.delete(p);else{sel.add(p);pd[p]=pd[p]||DEF[p]()}
+ renderChips();renderCards();
+};
+function cnt(p,k,lim){
+ const el=document.getElementById(`c-${p}-${k}`);if(!el)return;const n=(pd[p][k]||'').length;
+ el.textContent=`${n}/${lim}`;el.classList.toggle('over',n>lim);
+}
+function renderCards(){
+ const ps=PUB.filter(p=>sel.has(p));
+ $('#pcards').innerHTML=ps.length?ps.map(p=>`<div class="card pc" style="--c:${PL[p][1]}"><h3>${badge(p)}${PL[p][0]}</h3>${FIELDS[p].map(([k,l,t,lim])=>{
+  const v=pd[p][k]??'';
+  const ctl=t=='textarea'?`<textarea rows="4" data-p="${p}" data-f="${k}" id="f-${p}-${k}">${esc(v)}</textarea>`:t=='input'?`<input data-p="${p}" data-f="${k}" id="f-${p}-${k}" value="${esc(v)}">`:`<select data-p="${p}" data-f="${k}" id="f-${p}-${k}">${t.split(':')[1].split(',').map(o=>`<option ${o==v?'selected':''}>${o}</option>`).join('')}</select>`;
+  return `<label for="f-${p}-${k}">${l}${lim?`<span class="cnt" id="c-${p}-${k}"></span>`:''}</label>${ctl}`}).join('')}</div>`).join(''):'<div class="empty card">Select target platforms to configure platform-specific fields.</div>';
+ ps.forEach(p=>FIELDS[p].forEach(([k,,,lim])=>lim&&cnt(p,k,lim)));
+}
+$('#pcards').addEventListener('input',e=>{
+ const t=e.target,p=t.dataset.p,k=t.dataset.f;if(!k)return;pd[p][k]=t.value;
+ const lim=FIELDS[p].find(f=>f[0]==k)[3];if(lim)cnt(p,k,lim);
+});
+async function handleFile(f){
+ if(!f)return;$('#dz').innerHTML='Uploading '+esc(f.name)+'…';
+ try{
+  const url=await upload(f,'posts');media={url,type:f.type.startsWith('video')?'video':'image',name:f.name};
+  $('#dz').innerHTML='✓ '+esc(f.name)+'<br><small>Click to replace</small>';
+  $('#mprev').innerHTML=media.type=='video'?`<video src="${safeUrl(url)}" controls></video>`:`<img src="${safeUrl(url)}" alt="Preview">`;
+ }catch(e){toast('Upload failed: '+e.message,'er');$('#dz').innerHTML='Upload failed. Click to retry.'}
+}
+$('#mf').onchange=e=>handleFile(e.target.files[0]);
+const dr=$('#drop');
+['dragenter','dragover'].forEach(n=>dr.addEventListener(n,e=>{e.preventDefault();dr.classList.add('hv')}));
+['dragleave','drop'].forEach(n=>dr.addEventListener(n,e=>{e.preventDefault();dr.classList.remove('hv')}));
+dr.addEventListener('drop',e=>handleFile(e.dataTransfer.files[0]));
+
+/* AI Auto-Tailor */
+function localTailor(topic,cap,ps){
+ const words=[...new Set(((topic+' '+cap).toLowerCase().match(/[a-z0-9]{5,}/g))||[])].slice(0,10);
+ const tags=words.map(w=>'#'+w),title=(topic||cap.split(/[.!?\n]/)[0]).trim(),body=cap||topic;
+ const o={};
+ ps.forEach(p=>{
+  if(p=='youtube')o[p]={title:title.slice(0,70),description:`${body}\n\n${tags.slice(0,5).join(' ')}`,tags:words.join(', ')};
+  if(p=='instagram')o[p]={caption:`${title}\n\n${body}`.slice(0,2200),firstComment:tags.slice(0,12).join(' ')};
+  if(p=='facebook')o[p]={caption:`${title}\n\n${body}`,firstComment:tags.slice(0,5).join(' ')};
+  if(p=='linkedin')o[p]={text:`${title}\n\n${body}\n\n${tags.slice(0,4).join(' ')}`.slice(0,3000)};
+  if(p=='x'){const tg=tags.slice(0,2).join(' ');o[p]={text:(title+(body&&body!=title?' — '+body:'')).slice(0,280-tg.length-1).trim()+' '+tg}}
+  if(p=='telegram')o[p]={text:`📣 ${title}\n\n${body}`};
+ });
+ return o;
+}
+async function aiRemote(s,topic,cap,ps){
+ const shape={youtube:{title:'max 70 chars, SEO-led',description:'SEO description with CTA',tags:'comma separated keywords'},instagram:{caption:'max 2200 chars, hook first',firstComment:'15 relevant hashtags'},facebook:{caption:'conversational',firstComment:'3-5 hashtags'},linkedin:{text:'professional, max 3000 chars'},x:{text:'max 280 chars including hashtags'},telegram:{text:'concise announcement'}};
+ const want=Object.fromEntries(ps.map(p=>[p,shape[p]]));
+ const prompt=`Master topic: ${topic}\nMaster description: ${cap}\n\nWrite tailored social copy for each platform below. Respond with ONLY valid JSON in exactly this shape, replacing each hint with the final text:\n${JSON.stringify(want)}`;
+ let txt;
+ if(s.aiKey.startsWith('sk-ant')){
+  const r=await fetch('https://api.anthropic.com/v1/messages',{method:'POST',headers:{'content-type':'application/json','x-api-key':s.aiKey,'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true'},body:JSON.stringify({model:s.aiModel||'claude-sonnet-5-5',max_tokens:2500,messages:[{role:'user',content:prompt}]})});
+  const j=await r.json();if(!r.ok)throw new Error(j.error?.message||r.status);txt=j.content.map(c=>c.text||'').join('');
+ }else{
+  const r=await fetch('https://api.openai.com/v1/chat/completions',{method:'POST',headers:{'content-type':'application/json',Authorization:'Bearer '+s.aiKey},body:JSON.stringify({model:s.aiModel||'gpt-4o-mini',response_format:{type:'json_object'},messages:[{role:'system',content:'You are an expert social media strategist. Output JSON only.'},{role:'user',content:prompt}]})});
+  const j=await r.json();if(!r.ok)throw new Error(j.error?.message||r.status);txt=j.choices[0].message.content;
+ }
+ return JSON.parse(txt.slice(txt.indexOf('{'),txt.lastIndexOf('}')+1));
+}
+$('#ai').onclick=async()=>{
+ const ps=[...sel],topic=$('#topic').value.trim(),cap=$('#mcap').value.trim();
+ if(!ps.length)return toast('Select at least one target platform first','er');
+ if(!topic&&!cap)return toast('Add a master topic or caption first','er');
+ const b=$('#ai'),s=SET();b.disabled=true;b.textContent='✨ Tailoring…';let out;
+ try{out=s.aiKey?await aiRemote(s,topic,cap,ps):localTailor(topic,cap,ps)}
+ catch(e){toast('AI request failed ('+e.message+'). Used the built-in engine.','er');out=localTailor(topic,cap,ps)}
+ ps.forEach(p=>FIELDS[p].forEach(([k,,t])=>{const v=out[p]&&out[p][k];if(t!='select'&&v!=null)pd[p][k]=Array.isArray(v)?v.join(', '):String(v)}));
+ renderCards();b.disabled=false;b.textContent='✨ AI Auto-Tailor';
+ toast(s.aiKey?'Content tailored with AI':'Tailored with the built-in engine. Add an API key for AI copy.');
+};
+
+/* publish */
+async function publish(mode){
+ const ps=PUB.filter(p=>sel.has(p)),topic=$('#topic').value.trim(),cap=$('#mcap').value.trim();
+ if(!ps.length)return toast('Select at least one target platform','er');
+ for(const p of ps){
+  const d=pd[p],main=d.text??d.caption??d.title;
+  if((p=='youtube'||p=='instagram')&&!media)return toast(PL[p][0]+' needs a video or image','er');
+  if(!String(main||'').trim())return toast(PL[p][0]+': content is empty','er');
+  if(p=='x'&&d.text.length>280)return toast('X post is over 280 characters','er');
+  if(p=='linkedin'&&d.text.length>3000)return toast('LinkedIn post is over 3000 characters','er');
+ }
+ let when=null;
+ if(mode=='schedule'){const w=$('#when').value;if(!w||new Date(w)<=new Date())return toast('Pick a future date and time to schedule','er');when=new Date(w).toISOString()}
+ const btns=[$('#now'),$('#sch')];btns.forEach(b=>b.disabled=true);
+ try{
+  const row={title:topic||'Untitled post',master_caption:cap,media_url:media?media.url:null,media_type:media?media.type:null,platforms:ps,platform_data:Object.fromEntries(ps.map(p=>[p,pd[p]])),status:mode=='now'?'publishing':'scheduled',scheduled_for:when};
+  let post;
+  if(demo){post={...row,id:uid(),created_at:new Date().toISOString()};P.unshift(post)}
+  else{const r=await sb.from('scheduled_posts').insert(row).select().single();if(r.error)throw r.error;post=r.data;P.unshift(post)}
+  const url=SET().pubHook;
+  if(!url){
+   if(mode=='now')await patchPost(post,{status:'draft'});
+   toast('Saved, but no Publish Webhook is set (Accounts tab).','er');
+  }else{
+   const res=await hook(url,{event:'publish',mode,post_id:post.id,scheduled_for:when,master:{topic,caption:cap},media,platforms:ps,platform_data:row.platform_data,accounts:Object.fromEntries(ps.map(p=>[p,A.filter(a=>a.platform==p&&a.status=='connected')]))});
+   const resp=res.ok?{status:res.status,body:res.body}:{error:res.error||('HTTP '+res.status)};
+   if(mode=='now')await patchPost(post,{status:res.ok?'published':'failed',published_at:res.ok?new Date().toISOString():null,webhook_response:resp});
+   else await patchPost(post,{webhook_response:resp});
+   toast(res.ok?(mode=='now'?'Published via webhook':'Scheduled and dispatched'):'Webhook failed: '+resp.error,res.ok?'':'er');
+  }
+  if(mode=='schedule'&&!url)toast('Post scheduled');
+ }catch(e){toast('Publish failed: '+e.message,'er')}
+ btns.forEach(b=>b.disabled=false);renderPosts();
+}
+async function patchPost(post,patch){
+ Object.assign(post,patch);
+ if(!demo)await sb.from('scheduled_posts').update(patch).eq('id',post.id);
+}
+function renderPosts(){
+ $('#plist').innerHTML=P.length?P.slice(0,8).map(p=>`<div class="row"><div class="grow"><b>${esc(p.title)}</b><div class="chips" style="gap:4px;margin-top:4px">${(p.platforms||[]).map(badge).join('')}</div></div><div style="text-align:right"><span class="pill ${p.status}">${p.status}</span><div class="tt">${fmt(p.scheduled_for||p.created_at)}</div></div></div>`).join(''):'<div class="empty">Nothing published yet.</div>';
+}
+$('#now').onclick=()=>publish('now');$('#sch').onclick=()=>publish('schedule');
+
+/* ---------- accounts & settings ---------- */
+function renderAcc(){
+ $('#agrid').innerHTML=A.length?A.map(a=>`<div class="card ac">${badge(a.platform)}<div class="grow" style="flex:1;min-width:0"><b>${esc(a.account_name)}</b><div class="tt">${PL[a.platform][0]} · ${esc(a.handle||'')}</div></div>
+  <button class="pill ${a.status}" data-tg="${a.id}" title="Toggle connection">${a.status}</button><button class="btn danger sm" data-del="${a.id}" aria-label="Delete account">✕</button></div>`).join(''):'<div class="empty">No accounts yet. Add your first one below.</div>';
+}
+$('#agrid').onclick=async e=>{
+ const tg=e.target.closest('[data-tg]'),del=e.target.closest('[data-del]');
+ if(tg){const a=A.find(x=>x.id==tg.dataset.tg),status=a.status=='connected'?'paused':'connected';
+  if(!demo){const r=await sb.from('social_accounts').update({status}).eq('id',a.id);if(r.error)return toast(r.error.message,'er')}
+  a.status=status;renderAcc()}
+ if(del&&confirm('Remove this account? Existing conversations are kept.')){
+  if(!demo){const r=await sb.from('social_accounts').delete().eq('id',del.dataset.del);if(r.error)return toast(r.error.message,'er')}
+  A=A.filter(x=>x.id!=del.dataset.del);renderAcc();toast('Account removed');
+ }
+};
+$('#np').innerHTML=Object.keys(PL).map(p=>`<option value="${p}">${PL[p][0]}</option>`).join('');
+$('#addacc').onclick=async()=>{
+ const row={platform:$('#np').value,account_name:$('#nn').value.trim(),handle:$('#nh').value.trim()||null,status:'connected'};
+ if(!row.account_name)return toast('Enter an account name','er');
+ if(demo)A.push({...row,id:uid()});
+ else{const r=await sb.from('social_accounts').insert(row).select().single();if(r.error)return toast(r.error.message,'er');A.push(r.data)}
+ $('#nn').value=$('#nh').value='';renderAcc();toast('Account added');
+};
+function loadSettingsForm(){const s=SET();$('#sRep').value=s.replyHook||'';$('#sPub').value=s.pubHook||'';$('#sAi').value=s.aiKey||'';$('#sMod').value=s.aiModel||''}
+$('#saveset').onclick=()=>{
+ const v=id=>$(id).value.trim(),bad=[v('#sRep'),v('#sPub')].some(u=>u&&!/^https?:\/\//.test(u));
+ if(bad)return toast('Webhook URLs must start with http:// or https://','er');
+ localStorage.setItem('zx_set',JSON.stringify({replyHook:v('#sRep'),pubHook:v('#sPub'),aiKey:v('#sAi'),aiModel:v('#sMod')}));
+ toast('Settings saved');
+};
+
+function renderAll(){
+ renderFilters();renderThreads();renderChips();renderCards();renderPosts();renderAcc();
+ $('#convo').innerHTML='<div class="nothing"><b>◈</b>Select a conversation to start replying</div>';
+}
+boot();
+</script>
+</body>
+</html>

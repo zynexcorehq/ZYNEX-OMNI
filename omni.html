@@ -235,10 +235,17 @@ async function upload(file,folder){
 }
 
 /* ---------- boot / auth ---------- */
+const DEFAULT_URL = 'https://casdkerbucmxiazpvmlu.supabase.co';
+const DEFAULT_KEY = 'sb_publishable_mHXCkAELI_lPHe_p44RmvA_Fcoh_Hxi';
+
 async function boot(){
+ if(new URLSearchParams(location.search).get('demo')==='1'){
+  demo=true;sb=null;seedDemo();start();setTimeout(simIncoming,18000);return;
+ }
  const c=CFG();
- if(c.url&&c.key){try{sb=supabase.createClient(c.url,c.key);const{data}=await sb.auth.getSession();if(data.session)return start()}catch(_){}}
- $('#lu').value=c.url||'';$('#lk').value=c.key||'';$('#login').classList.add('on');
+ const url=c.url||DEFAULT_URL, key=c.key||DEFAULT_KEY;
+ if(url&&key){try{sb=supabase.createClient(url,key);const{data}=await sb.auth.getSession();if(data.session)return start()}catch(_){}}
+ $('#lu').value=url;$('#lk').value=key;$('#login').classList.add('on');
 }
 $('#lgo').onclick=async()=>{
  const url=$('#lu').value.trim(),key=$('#lk').value.trim();$('#lerr').textContent='';
